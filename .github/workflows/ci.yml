@@ -26,6 +26,10 @@ jobs:
 
       - run: npm ci
 
+      # Generates .next/types (LayoutProps/PageProps helpers), which next
+      # build/dev normally produce as a side effect but tsc alone does not.
+      - run: npx next typegen
+
       - run: npx tsc --noEmit
 
       - run: npm run lint
