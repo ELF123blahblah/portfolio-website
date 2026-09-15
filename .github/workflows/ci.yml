@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # Dummy values only — the app must not need real credentials to build.
+      # Real secrets live in Vercel's environment variables, never here.
+      DATABASE_URL: postgres://user:pass@localhost:5432/placeholder
+      ADMIN_PASSWORD_HASH: $2b$12$placeholderplaceholderplaceholderplaceholderplaceholde
+      AUTH_SECRET: dGhpc2lzYWRldmVsb3BtZW50b25seXBsYWNlaG9sZGVyc2VjcmV0
+      BLOB_READ_WRITE_TOKEN: vercel_blob_rw_placeholder_placeholder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - run: npm ci
+
+      # Generates .next/types (LayoutProps/PageProps helpers), which next
+      # build/dev normally produce as a side effect but tsc alone does not.
+      - run: npx next typegen
+
+      - run: npx tsc --noEmit
+
+      - run: npm run lint
+
+      - run: npm run build
