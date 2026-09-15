@@ -21,6 +21,18 @@ export async function getPublishedProjectBySlug(slug: string) {
   return rows[0] ?? null;
 }
 
+// Used to resolve a journal entry's parent project for display — must stay
+// published-filtered so a published entry never reveals a draft project's
+// title/slug (the two `published` flags are independent).
+export async function getPublishedProjectById(id: number) {
+  const rows = await db
+    .select({ id: projects.id, title: projects.title, slug: projects.slug })
+    .from(projects)
+    .where(and(eq(projects.id, id), eq(projects.published, true)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 export function getPublishedEntries(projectId?: number) {
   const conditions = projectId
     ? and(eq(journalEntries.published, true), eq(journalEntries.projectId, projectId))

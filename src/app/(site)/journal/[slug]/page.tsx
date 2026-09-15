@@ -4,10 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { getPublishedEntryBySlug, getEntryImages } from "@/db/queries";
-import { db } from "@/db";
-import { projects as projectsTable } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { getPublishedEntryBySlug, getEntryImages, getPublishedProjectById } from "@/db/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -37,14 +34,7 @@ export default async function JournalEntryPage({
 
   const [images, project] = await Promise.all([
     getEntryImages(entry.id),
-    entry.projectId
-      ? db
-          .select({ title: projectsTable.title, slug: projectsTable.slug })
-          .from(projectsTable)
-          .where(eq(projectsTable.id, entry.projectId))
-          .limit(1)
-          .then((rows) => rows[0] ?? null)
-      : Promise.resolve(null),
+    entry.projectId ? getPublishedProjectById(entry.projectId) : Promise.resolve(null),
   ]);
 
   return (
