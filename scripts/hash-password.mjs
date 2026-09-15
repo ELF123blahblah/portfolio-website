@@ -51,7 +51,18 @@ async function main() {
   }
 
   const hash = await bcrypt.hash(password, COST_FACTOR);
-  console.log("\nADMIN_PASSWORD_HASH:");
+
+  // Next.js expands unescaped `$VARIABLE` references in .env files (see
+  // https://nextjs.org/docs/app/guides/environment-variables#referencing-other-variables).
+  // A bcrypt hash's `$2b$12$...` segments look exactly like variable
+  // references and get silently replaced with empty strings if pasted
+  // as-is, breaking login with no visible error. Escape every `$` so the
+  // value that goes in .env.local (and Vercel) is used to hash the password.
+  const escapedForDotenv = hash.replace(/\$/g, "\\$");
+
+  console.log("\nPaste this line into .env.local (dollar signs are pre-escaped):");
+  console.log(`ADMIN_PASSWORD_HASH=${escapedForDotenv}`);
+  console.log("\nFor Vercel's environment variable UI, use the raw hash instead (no escaping):");
   console.log(hash);
 }
 
