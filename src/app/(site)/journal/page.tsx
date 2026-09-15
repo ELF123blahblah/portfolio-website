@@ -1,9 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getPublishedEntries } from "@/db/queries";
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { projects as projectsTable } from "@/db/schema";
+import { getPublishedEntries, getPublishedProjectBySlug } from "@/db/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -19,22 +16,25 @@ export default async function JournalPage({
 }) {
   const { project: projectSlug } = await searchParams;
 
+  // Only ever resolve a filter against a *published* project — a slug
+  // matching a draft (or no project at all) must look identical (empty
+  // results, no banner) so the filter can't be used to probe for
+  // unpublished projects.
   let projectId: number | undefined;
   let activeProjectTitle: string | null = null;
+  let filterMatchedNothing = false;
 
   if (projectSlug) {
-    const rows = await db
-      .select({ id: projectsTable.id, title: projectsTable.title })
-      .from(projectsTable)
-      .where(eq(projectsTable.slug, projectSlug))
-      .limit(1);
-    if (rows[0]) {
-      projectId = rows[0].id;
-      activeProjectTitle = rows[0].title;
+    const project = await getPublishedProjectBySlug(projectSlug);
+    if (project) {
+      projectId = project.id;
+      activeProjectTitle = project.title;
+    } else {
+      filterMatchedNothing = true;
     }
   }
 
-  const entries = await getPublishedEntries(projectId);
+  const entries = filterMatchedNothing ? [] : await getPublishedEntries(projectId);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-12">

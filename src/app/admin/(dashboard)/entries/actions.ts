@@ -3,6 +3,7 @@
 import { and, eq, ne } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { del } from "@vercel/blob";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/db";
 import { entryImages, journalEntries } from "@/db/schema";
@@ -94,7 +95,21 @@ export async function updateEntry(id: number, formData: FormData): Promise<void>
 export async function deleteEntry(id: number): Promise<void> {
   await requireAuth();
 
+  const images = await db
+    .select({ url: entryImages.url })
+    .from(entryImages)
+    .where(eq(entryImages.entryId, id));
+
+  // DB row deletion cascades to entry_images regardless of whether the
+  // blob delete below succeeds — Blob storage isn't transactional with
+  // Postgres, so a failure here can't be allowed to block the entry
+  // deletion. Any orphaned blob is a storage-cost issue, not a data-
+  // integrity one.
   await db.delete(journalEntries).where(eq(journalEntries.id, id));
+
+  if (images.length > 0) {
+    await del(images.map((i) => i.url)).catch(() => {});
+  }
 
   revalidatePath("/admin");
   revalidatePath("/journal");
@@ -132,6 +147,7 @@ export async function deleteImage(imageId: number): Promise<void> {
   if (!image) return;
 
   await db.delete(entryImages).where(eq(entryImages.id, imageId));
+  await del(image.url).catch(() => {});
 
   revalidatePath(`/admin/entries/${image.entryId}`);
 }

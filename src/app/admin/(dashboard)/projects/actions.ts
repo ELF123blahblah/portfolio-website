@@ -5,8 +5,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
 import { db } from "@/db";
-import { projects } from "@/db/schema";
+import { projects, PROJECT_STATUSES, type ProjectStatus } from "@/db/schema";
 import { slugify } from "@/lib/slug";
+
+function parseStatus(raw: FormDataEntryValue | null): ProjectStatus {
+  const value = String(raw ?? "active");
+  return (PROJECT_STATUSES as readonly string[]).includes(value)
+    ? (value as ProjectStatus)
+    : "active";
+}
 
 async function uniqueSlug(base: string, excludeId?: number): Promise<string> {
   const baseSlug = slugify(base) || "project";
@@ -36,7 +43,7 @@ export async function createProject(formData: FormData): Promise<void> {
 
   const title = String(formData.get("title") ?? "").trim();
   const summary = String(formData.get("summary") ?? "").trim();
-  const status = String(formData.get("status") ?? "active") as "active" | "complete" | "shelved";
+  const status = parseStatus(formData.get("status"));
 
   if (!title || !summary) {
     throw new Error("Title and summary are required");
@@ -62,7 +69,7 @@ export async function updateProject(id: number, formData: FormData): Promise<voi
   const title = String(formData.get("title") ?? "").trim();
   const summary = String(formData.get("summary") ?? "").trim();
   const slugInput = String(formData.get("slug") ?? "").trim();
-  const status = String(formData.get("status") ?? "active") as "active" | "complete" | "shelved";
+  const status = parseStatus(formData.get("status"));
   const startedAt = String(formData.get("startedAt") ?? "") || null;
   const tech = parseTech(String(formData.get("tech") ?? ""));
   const repoUrl = String(formData.get("repoUrl") ?? "").trim() || null;
